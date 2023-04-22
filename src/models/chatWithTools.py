@@ -11,11 +11,14 @@ import os
 #from google.oauth2.credentials import Credentials
 #from googleapiclient.discovery import build
 
-from langchain.agents import AgentExecutor, Tool, initialize_agent_executor 
-from langchain.chat_models import ChatOpenAI
-from langchain.memory import BufferMemory
+from langchain.agents import AgentType, load_tools, initialize_agent
+
+from langchain.llms import OpenAI
+
+#from langchain.chat_models import ChatOpenAI
+#from langchain.memory import ConversationBufferWindowMemory
 from tools.google import GoogleTool
-from openai import OpenAIApi, Configuration
+
 
 openAIApiKey = os.environ['OPENAI_API_KEY']
 
@@ -32,32 +35,20 @@ params = {
 
 class Model:
     def __init__(self):
-        self.tools: Tool
-        self.executor: AgentExecutor
-        self.openai: ChatOpenAI
-        self.model: ChatOpenAI
-        configuration = Configuration({
-            apiKey: openAIApiKey,
-        })
-        self.tools = [GoogleTool]
-        self.openai = OpenAIApi(configuration)
-        self.model = ChatOpenAI(params, configuration)
+        self.llm=OpenAI(params['modelName'])
+        self.tools: load_tools([GoogleTool])
 
     def call(self, input: str):
-        if not self.executor:
-            self.executor = initialize_agent_executor(
+        if not self.agent:
+            self.executor = initialize_agent(
                 self.tools,
-                self.model,
-                "chat-conversational-react-description",
-                True
+                self.llm,
+                agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
+                verbose=True
             )
-            self.executor.memory = BufferMemory({
-                "returnMessages": True,
-                "memoryKey": "chat_history",
-                "inputKey": "input",
-            })
+            self.agent.memory = ConversationBufferWindowMemory(k=2)
 
-        response = self.executor.call({ "input": input })
+        response = self.agent.run(input)
 
         print("Model response: " + response)
 

@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 import telebot
-from lib.chat import ChatWithTools
+from models.chatWithTools import ChatWithTools
 from pathlib import Path
 from io import BytesIO
 import os
@@ -14,31 +14,31 @@ if "TELEGRAM_TOKEN" not in os.environ or "TELEGRAM_TOKEN" not in os.environ:
 telegram_token = os.environ['TELEGRAM_TOKEN']
 bot = telebot.TeleBot(telegram_token, parse_mode=None)
 
-model = ChatWithTools()
+#model = ChatWithTools()
 
 if not os.path.exists(work_dir):
     os.makedirs(work_dir)
 
 @bot.message_handler(commands=['start'])
-def start(client, message):
-    message.reply_text("Hello! I'm a bot that can talk to the AI. Send me a message!")
+def start(message):
+    bot.send_message(message.chat.id,"Hello! I'm a bot that can talk to the AI. Send me a message!")
 
-@bot.on_message(commands=['stop'])
-def stop(client, message):
-    message.reply_text("Stopping...")
+@bot.message_handler(commands=['stop'])
+def stop(message):
+    bot.send_message(message.chat.id,"Stopping...")
     bot.stop()
 
-@bot.on_message(commands=['help'])
-def help(client, message):
-    message.reply_text("Send me a message and I'll give it to the AI!")
+@bot.message_handler(commands=['help'])
+def help(message):
+    bot.send_message(message.chat.id,"Send me a message and I'll give it to the AI!")
 
-@bot.on_message(commands=["status"])
-def status(client, message):
-    message.reply_text("I'm running!")
+@bot.message_handler(commands=["status"])
+def status(message):
+    bot.send_message(message.chat.id,"I'm running!")
 
-@bot.on_message(commands=["ping"])
-def ping(client, message):
-    message.reply_text("Pong!")
+@bot.message_handler(commands=["ping"])
+def ping(message):
+    bot.send_message(message.chat.id,"Pong!")
 
 @bot.message_handler(func=lambda message: True)
 def chat(message):
@@ -48,14 +48,15 @@ def chat(message):
 
     print("Input: ", message.text)
 
-    message.reply_chat_action("typing")
+    last_message = bot.send_message(message.chat.id,"typing",disable_notification= True)
     try:
         response = model.call(message.text)
-
-        message.reply_text(response)
+        response=message.text
+        bot.delete_message(message.chat.id,last_message.id)
+        bot.send_message(message.chat.id,response)
     except Exception as error:
         print(error)
 
-        bot.reply_to(message,"Whoops! There was an error while talking to OpenAI. Error: " + str(error))
+        bot.send_message(message.chat.id,"Whoops! There was an error while talking to OpenAI. Error: " + str(error))
 
 bot.infinity_polling()
